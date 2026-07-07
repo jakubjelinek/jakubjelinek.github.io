@@ -288,8 +288,8 @@ bit-precise integers.
 </p>
 
 <p>
-<var>type</var> can be any standard integer type or extended integer type,
-except <code>bool</code>.  Bit-precise integer types are intentionally
+<var>type</var> can be any standard unsigned integer type or extended
+unsigned integer type.  Bit-precise integer types are intentionally
 excluded from this set, supporting splitting of bit-precise integers
 into array of <code>_BitInt(17)</code> or array of <code>_BitInt(921)</code>
 wouldn't be very useful and would significantly complicate the implementation
@@ -459,7 +459,7 @@ is invoked if <var>uns</var> argument is <code>false</code> or as if
 <code>va_arg(<var>ap</var>, unsigned _BitInt(<var>N</var>)</code> otherwise
 where <var>N</var> is constant equal to <var>n</var>, stores that value into
 a compound literal of the same type and then writes that value into an array
-pointed by <var>limbptr</var> as if the type-generic macro
+pointed to by <var>limbptr</var> as if the type-generic macro
 <code>stdc_store_bitint</code> has been invoked with the address of the
 compound literal as first argument and the <var>n</var>, <var>limbptr</var>,
 <var>big_endian</var> and <var>uns</var> arguments passed as remaining
@@ -491,13 +491,13 @@ void stdc_load_bitint(void *<var>bitintptr</var>, size_t <var>n</var>, const <va
 
 <p>
 The type-generic function <code>stdc_load_bitint</code> reads a value from
-array pointed by <var>limbptr</var> and writes it into an object with
+the array pointed to by <var>limbptr</var> and writes it into an object with
 bit-precise signed integer type with width equal to <var>n</var> pointed
 to by <var>bitintptr</var> when <var>uns</var> is <code>false</code> or into an object
 with bit-precise unsigned integer type with width equal to <var>n</var>
 pointed to by <var>bitintptr</var> otherwise, provided that the
-<var>generic_limb_type</var> type is a standard integer type or extended integer type,
-other than <code>bool</code>.  If <var>n</var> is smaller than 1 or larger than
+<var>generic_limb_type</var> type is a standard unsigned integer type or extended
+unsigned integer type.  If <var>n</var> is smaller than 1 or larger than
 <var>BITINT_MAXWIDTH</var>, the behavior is undefined.
 </p>
 
@@ -515,11 +515,11 @@ where <var>b</var><sub><var>index</var></sub> is:<br>
 <p>
 Let <var>value</var> be <var>avalue</var> modulo 2<sup><var>n</var></sup>.<br>
 If <var>uns</var> argument is <code>true</code>, then <var>value</var>
-is stored into the object pointed by <var>bitintptr</var>;<br>
+is stored into the object pointed to by <var>bitintptr</var>;<br>
 otherwise, if <var>value</var> is smaller than 2<sup><var>n</var>-1</sup>,
-then <var>value</var> is stored into the object pointed by <var>bitintptr</var>;<br>
+then <var>value</var> is stored into the object pointed to by <var>bitintptr</var>;<br>
 otherwise, <var>value</var> &ndash; 2<sup><var>n</var></sup> is stored
-into the object pointed by <var>bitintptr</var>.
+into the object pointed to by <var>bitintptr</var>.
 </p>
 
 <h3>7.18.24 Bit-Precise Integer Store</h3>
@@ -541,14 +541,14 @@ void stdc_store_bitint(const void *<var>bitintptr</var>, size_t <var>n</var>, <v
 
 <p>
 The type-generic function <code>stdc_store_bitint</code> reads a value from
-object with bit-precise signed integer type with width equal to <var>n</var>
+the object with bit-precise signed integer type with width equal to <var>n</var>
 pointed to by <var>bitintptr</var> when <var>uns</var> is <code>false</code> or a value from
-object with bit-precise unsigned integer type with width equal to <var>n</var>
-pointed to by <var>bitintptr</var> otherwise and writes it into array pointed by
+the object with bit-precise unsigned integer type with width equal to <var>n</var>
+pointed to by <var>bitintptr</var> otherwise and writes it into the array pointed to by
 <var>limbptr</var>, provided that the <var>generic_limb_type</var> type is
-a standard integer type or extended integer type, other than
-<code>bool</code>.  If <var>n</var> is smaller than 1 or larger than
-<var>BITINT_MAXWIDTH</var>, the behavior is undefined.
+a standard unsigned integer type or extended unsigned integer type.
+If <var>n</var> is smaller than 1 or larger than <var>BITINT_MAXWIDTH</var>,
+the behavior is undefined.
 </p>
 
 <p>
