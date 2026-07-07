@@ -241,6 +241,23 @@ the library can choose any limb type it wants instead of requiring to
 match a particular ABI limb type.
 </p>
 
+<p>
+For <code>scanf</code> there is another problem.  It is undefined behavior
+to use <code>va_arg (<var>ap</var>, _BitInt(64) *)<code> when the next
+argument has <code>_BitInt(65) *</code> or <code>_BitInt(927) *</code>
+type.  So, in order to implement bit-precise integer <code>scanf</code>
+support, one still needs pedantically a large <code>switch</code> with
+thousands or millions of similar pointer types, even when it will actually
+most likely work properly with just one <code>va_arg</code> invocation.
+While there probably are legacy reasons why C needs to allow different
+representation of e.g. function pointers and data pointers, bit-precise
+integer types are a recent addition to C and to the author's knowledge
+there are no ABIs which would pass pointers to bit-precise integers
+with different width differently.  Thus this paper suggests at least
+requiring compatibility of pointer to bit-precise integer types through
+<code>va_arg</code>.
+</p>
+
 <h2><a name="Proposal">Proposal</a></h2>
 
 <p>
@@ -427,6 +444,34 @@ to access an actual function, or a program defines an external identifier with t
 the behavior is undefined.  Each invocation of the <code>va_start</code> and
 <code>va_copy</code> macros shall be matched by a corresponding invocation of the
 <code>va_end</code> macro in the same function.
+</p>
+</blockquote>
+
+<p>
+Modify 7.16.2.2 The <code>va_arg</code> macro paragraph 2:
+</p>
+
+<blockquote class="std">
+<p>
+The <code>va_arg</code> macro expands to an expression that has the specified type and
+the value of the next argument in the call.  The parameter ap shall have been initialized
+by the <code>va_start</code> or <code>va_copy</code> macro (without an intervening
+invocation of the <code>va_end</code> macro for the same ap).  Each invocation of
+the <code>va_arg</code> macro modifies ap so that the values of successive arguments
+are returned in turn.  The behavior is undefined if there is no actual next argument.
+The parameter <var>type</var> shall be an object type name.  If <var>type</var> is not
+compatible with the type of the actual next argument (as promoted according to the default
+argument promotions), the behavior is undefined, except for the following cases:<br>
+&mdash; both types are pointers to qualified or unqualified versions of compatible types;<br>
+<ins>&mdash; both types are pointers to qualified or unqualified versions of
+bit-precise integer types;<br></ins>
+&mdash; one type is compatible with a signed integer type, the other type is compatible with the
+corresponding unsigned integer type, and the value is representable in both
+types;<br>
+&mdash; one type is pointer to qualified or unqualified void and the other is a pointer to a qualified or
+unqualified character type;<br>
+&mdash; or, the type of the next argument is nullptr_t and type is a pointer type that has the same
+representation and alignment requirements as a pointer to a character type.<sup>265)</sup>
 </p>
 </blockquote>
 
