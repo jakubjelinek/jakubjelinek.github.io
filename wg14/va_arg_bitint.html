@@ -283,7 +283,7 @@ else
 except that <var>n</var> (nor the other macro arguments) is not required to
 be a constant expression, while <code>_BitInt(<var>N</var>)</code> keyword requires
 a constant expression <var>N</var>, so it actually works as if a large
-<code>switch</code> based on <var>n</var> handling all supported width of
+<code>switch</code> based on <var>n</var> handling all supported widths of
 bit-precise integers.
 </p>
 
@@ -311,15 +311,15 @@ equal to <var>n</var>.
 <code>stdc_store_bitint</code> stores, if <var>n</var> is greater or equal
 than <var>W</var>, the least significant <var>W</var> bits of
 the bit-precise integer value into
-<code><var>limbptr</var>[<var>big_endian</var> ? <var>n</var> + <var>W</var> - 1) / <var>W</var> - 1 : 0]</code>,
+<code><var>limbptr</var>[<var>big_endian</var> ? (<var>n</var> + <var>W</var> - 1) / <var>W</var> - 1 : 0]</code>,
 if <var>n</var> is greater or equal than <code>2 * <var>W</var></code>,
 the second least significant <var>W</var> bits of the bit-precise
 integer value into
-<code><var>limbptr</var>[<var>big_endian</var> ? <var>n</var> + <var>W</var> - 1) / <var>W</var> - 2 : 1]</code>,
+<code><var>limbptr</var>[<var>big_endian</var> ? (<var>n</var> + <var>W</var> - 1) / <var>W</var> - 2 : 1]</code>,
 etc., up to the most significant <code>((<var>n</var> - 1) % <var>W</var>) + 1</code>
 bits of the bit-precise integer value, which is stored into least
 significant bits of
-<code><var>limbptr</var>[<var>big_endian</var> ? 0 : <var>n</var> + <var>W</var> - 1) / <var>W</var> - 1]</code>.
+<code><var>limbptr</var>[<var>big_endian</var> ? 0 : (<var>n</var> + <var>W</var> - 1) / <var>W</var> - 1]</code>.
 If <code><var>n</var> % <var>W</var> != 0</code> the remaining bits are
 cleared if <var>uns</var> or sign-extended otherwise.
 </p>
@@ -327,12 +327,12 @@ cleared if <var>uns</var> or sign-extended otherwise.
 <p>
 <code>stdc_load_bitint</code> conversely sets the least significant
 <var>W</var> bits of the bit-precise integer object to
-<code><var>limbptr</var>[<var>big_endian</var> ? <var>n</var> + <var>W</var> - 1) / <var>W</var> - 1 : 0]</code>,
+<code><var>limbptr</var>[<var>big_endian</var> ? (<var>n</var> + <var>W</var> - 1) / <var>W</var> - 1 : 0]</code>,
 the second last significant <var>W</var> bits of the bit-precise integer object to
-<code><var>limbptr</var>[<var>big_endian</var> ? <var>n</var> + <var>W</var> - 1) / <var>W</var> - 2 : 1]</code>,
+<code><var>limbptr</var>[<var>big_endian</var> ? (<var>n</var> + <var>W</var> - 1) / <var>W</var> - 2 : 1]</code>,
 etc. and finally the most significant <code>((<var>n</var> - 1) % <var>W</var>) + 1</code>
 bits to
-<code><var>limbptr</var>[<var>big_endian</var> ? 0 : <var>n</var> + <var>W</var> - 1) / <var>W</var> - 1]</code>.
+<code><var>limbptr</var>[<var>big_endian</var> ? 0 : (<var>n</var> + <var>W</var> - 1) / <var>W</var> - 1]</code>.
 </p>
 
 <p>
@@ -444,7 +444,7 @@ Add a new subclause after 7.16.2.2 The <code>va_arg</code> macro:
 <pre class="example">
 <code>
 #include &lt;stdarg.h&gt;
-void va_arg_bitint(va_list <var>ap</var>, size_t <var>n</var>, const <var>generic_limb_type</var> *<var>limbptr</var>, bool <var>big_endian</var>, bool <var>uns</var>);
+void va_arg_bitint(va_list <var>ap</var>, size_t <var>n</var>, <var>generic_limb_type</var> *<var>limbptr</var>, bool <var>big_endian</var>, bool <var>uns</var>);
 </code>
 </pre>
 
