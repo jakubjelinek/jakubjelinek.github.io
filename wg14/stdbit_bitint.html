@@ -1,0 +1,424 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+   "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=US-ASCII">
+<style type="text/css">
+
+body { color: #000000; background-color: #FFFFFF; }
+del { text-decoration: line-through; color: #8B0040; }
+ins { text-decoration: underline; color: #005100; }
+
+p.example { margin-left: 2em; }
+pre.example { margin-left: 2em; }
+div.example { margin-left: 2em; }
+
+code.extract { background-color: #F5F6A2; }
+pre.extract { margin-left: 2em; background-color: #F5F6A2;
+  border: 1px solid #E1E28E; }
+
+p.function { }
+.attribute { margin-left: 2em; }
+.attribute dt { float: left; font-style: italic;
+  padding-right: 1ex; }
+.attribute dd { margin-left: 0em; }
+
+blockquote.std { color: #000000; background-color: #F1F1F1;
+  border: 1px solid #D1D1D1;
+  padding-left: 0.5em; padding-right: 0.5em; }
+blockquote.stddel { text-decoration: line-through;
+  color: #000000; background-color: #FFEBFF;
+  border: 1px solid #ECD7EC;
+  padding-left: 0.5empadding-right: 0.5em; ; }
+
+blockquote.stdins { text-decoration: underline;
+  color: #000000; background-color: #C8FFC8;
+  border: 1px solid #B3EBB3; padding: 0.5em; }
+
+table { border: 1px solid black; border-spacing: 0px;
+  margin-left: auto; margin-right: auto; }
+th { text-align: left; vertical-align: top;
+  padding-left: 0.8em; border: none; }
+td { text-align: left; vertical-align: top;
+  padding-left: 0.8em; border: none; }
+
+</style>
+<title>Remove some stdbit.h bit-precise integer restrictions</title>
+</head>
+<body>
+
+<h1>Remove some stdbit.h bit-precise integer restrictions</h1>
+
+<p>
+ISO/IEC JTC1/SC22/WG14 NXXXX 2026-07-07
+</p>
+
+<address>
+Jakub Jel&iacute;nek, jakub@redhat.com
+</address>
+
+<p>
+<a href="#Abstract">Abstract</a><br>
+<a href="#ChangeLog">ChangeLog</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#rev0">Revision 0</a><br>
+<a href="#Introduction">Introduction and Motivation</a><br>
+<a href="#Wording">Wording</a><br>
+<a href="#Acknowledgments">Acknowledgments</a><br>
+</p>
+
+<h2><a name="Abstract">Abstract</a></h2>
+
+<p>
+This paper proposes dropping some restrictions on use of
+bit-precise integer types in <code>stdbit.h</code> type-generic macros.
+</p>
+
+<h2><a name="ChangeLog">ChangeLog</a></h2>
+
+<h3><a name="rev0">Revision 0</a> 2026-07-07</h3>
+
+<p>
+&mdash; Initial release.
+</p>
+
+<h2><a name="Introduction">Introduction and Motivation</a></h2>
+
+<p>
+C23 introduced bit-precise integer types, however various restrictions
+on <code>stdbit.h</code> type-generic macros make the bit-precise integer
+types second class citizens.
+The usual wording is: <em>a bit-precise unsigned integer type whose width
+matches a standard or extended integer type</em>.
+</p>
+
+<p>
+If a C23 or C2Y implementation implements the bare minimum bit-precise
+integer types (so e.g. with <code>BITINT_MAXWIDTH</code> equal to
+<code>LLONG_WIDTH</code> or perhaps twice as big value), modifying
+all of the <code>stdbit.h</code> type-generic macros to also support
+arbitrary supported bit-precise integer types is fairly easy.  In
+some cases it is just a matter of zero-extending the value into
+the largest standard or extended integer type, in other cases one
+needs to query the width of the bit-precise integer type (can be done
+using <code>_Generic</code> or e.g. using <code>stdc_count_ones</code>
+on <code>(unsigned long long) ~(typeof (<var>value</var>))0</code>
+and combine that with the result of the type-generic macro on
+a larger standard or extended integer type.  Or, if it is twice the
+size of the largest standard or extended integer type, it can be often
+implemented using the type-generic macro on both the low and high
+halves of the value cast to the largest standard or extended integer type.
+
+If an implementation already supports much larger values of
+<code>BITINT_MAXWIDTH</code>, then it already significant effort has
+been spent to implement arithmetics, cast from/to floating point types
+(including decimal floating point) and implementing extra type-generic
+intrinsics for the <code>stdbit.h</code> type-generic macros is just
+very small fraction of the overall engineering effort to implement
+bit-precise integer types.
+</p>
+
+<p>
+Both GCC and Clang implement various built-in functions which can be
+used to implement <code>stdbit.h</code> macros, e.g.
+<code>__builtin_clzg</code>, <code>__builtin_ctzg</code>, <code>__builtin_clrsbg</code>,
+<code>__builtin_ffsg</code>, <code>__builtin_parityg</code>, <code>__builtin_popcountg</code>,
+<code>__builtin_bswapg</code>, <code>__builtin_bitreverseg</code>,
+and
+<code>__builtin_stdc_bit_ceil</code>, <code>__builtin_stdc_bit_floor</code>,
+<code>__builtin_stdc_bit_width</code>, <code>__builtin_stdc_count_ones</code>,
+<code>__builtin_stdc_count_zeros</code>, <code>__builtin_stdc_first_leading_one</code>,
+<code>__builtin_stdc_first_leading_zero</code>, <code>__builtin_stdc_first_trailing_one</code>,
+<code>__builtin_stdc_first_trailing_zero</code>, <code>__builtin_stdc_has_single_bit</code>,
+<code>__builtin_stdc_leading_ones</code>, <code>__builtin_stdc_leading_zeros</code>,
+<code>__builtin_stdc_rotate_left</code>, <code>__builtin_stdc_rotate_right</code>,
+<code>__builtin_stdc_trailing_ones</code>,
+<code>__builtin_stdc_trailing_zeros</code>.
+With these, e.g. the GNU C library supports in <code>stdbit.h</code>
+arbitrary bit-precise integer types without too much extra effort.
+</p>
+
+<h2><a name="Wording">Wording</a></h2>
+
+<p>
+The wording is relative to the latest Working Draft at time of publication,
+<a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3886.pdf">N3886</a>.
+</p>
+
+<p>
+Modify 7.18.3 Count Leading Zeros paragraph 2:
+</p>
+
+<blockquote class="std">
+<p>
+Returns the number of consecutive 0 bits in value, starting from the most significant bit.<br>
+The type-generic function <code>stdc_leading_zeros</code> returns the appropriate value based on the type of
+the input value, provided that it is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches a standard or extended integer type</del>.<br>
+The <var><var>generic_return_type</var></var> type shall be a suitably large unsigned integer type capable of
+representing the computed result.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.4 Count Leading Ones paragraph 2:
+</p>
+
+<blockquote class="std">
+<p>
+Returns the number of consecutive 1 bits in value, starting from the most significant bit.<br>
+The type-generic function <code>stdc_leading_ones</code> returns the appropriate value based on the type of
+the input value, provided that it is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches a standard or extended integer type</del>.<br>
+The <var>generic_return_type</var> type shall be a suitably large unsigned integer type capable of
+representing the computed result.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.5 Count Trailing Zeros paragraph 2:
+</p>
+
+<blockquote class="std">
+<p>
+Returns the number of consecutive 0 bits in value, starting from the least significant bit.<br>
+The type-generic function <code>stdc_trailing_zeros</code> returns the appropriate value based on the type
+of the input value, provided that it is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches a standard or extended integer type</del>.<br>
+The <var>generic_return_type</var> type shall be a suitably large unsigned integer type capable of
+representing the computed result.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.6 Count Trailing Ones paragraph 2:
+</p>
+
+<blockquote class="std">
+<p>
+Returns the number of consecutive 1 bits in value, starting from the least significant bit.<br>
+The type-generic function <code>stdc_trailing_ones</code> returns the appropriate value based on the type of
+the input value, provided that it is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches a standard or extended integer type</del>.<br>
+The <var>generic_return_type</var> type shall be a suitably large unsigned integer type capable of
+representing the computed result.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.7 First Leading Zero paragraph 2:
+</p>
+
+<blockquote class="std">
+<p>
+Returns the most significant index of the first 0 bit in value, plus 1.  If it is not found, this function
+returns 0.<br>
+The type-generic function <code>stdc_first_leading_zero</code> returns the appropriate value based on the
+type of the input value, provided that it is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches a standard or extended integer type</del>.<br>
+The <var>generic_return_type</var> type shall be a suitably large unsigned integer type capable of
+representing the computed result.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.8 First Leading One paragraph 2:
+</p>
+
+<blockquote class="std">
+<p>
+Returns the most significant index of the first 1 bit in value, plus 1.  If it is not found, this function
+returns 0.<br>
+The type-generic function <code>stdc_first_leading_one</code> returns the appropriate value based on the
+type of the input value, provided that it is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches a standard or extended integer type</del>.<br>
+The <var>generic_return_type</var> type shall be a suitably large unsigned integer type capable of
+representing the computed result.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.9 First Trailing Zero paragraph 2:
+</p>
+
+<blockquote class="std">
+<p>
+Returns the least significant index of the first 0 bit in value, plus 1.  If it is not found, this function
+returns 0.<br>
+The type-generic function <code>stdc_first_trailing_zero</code> returns the appropriate value based on the
+type of the input value, provided that it is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches a standard or extended integer type</del>.<br>
+The <var>generic_return_type</var> type shall be a suitably large unsigned integer type capable of
+representing the computed result.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.10 First Trailing One paragraph 2:
+</p>
+
+<blockquote class="std">
+<p>
+Returns the least significant index of the first 1 bit in value, plus 1.  If it is not found, this function
+returns 0.<br>
+The type-generic function <code>stdc_first_trailing_one</code> returns the appropriate value based on the
+type of the input value, provided that it is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches a standard or extended integer type</del>.<br>
+The <var>generic_return_type</var> type shall be a suitably large unsigned integer type capable of
+representing the computed result.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.11 Count Zeros paragraph 3:
+</p>
+
+<blockquote class="std">
+<p>
+The type-generic function <code>stdc_count_zeros</code> returns the previously described result for a given
+input value provided that the type of the <var>generic_value_type</var> argument is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches a standard or extended integer type</del>.<br>
+The <var>generic_return_type</var> type shall be a suitably large unsigned integer type capable of
+representing the computed result.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.12 Count Ones paragraph 2:
+</p>
+
+<blockquote class="std">
+<p>
+Returns the total number of 1 bits within the given value.<br>
+The type-generic function <code>stdc_count_ones</code> returns the previously described result for a given
+input value the <var>generic_value_type</var> is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches a standard or extended integer type</del>.<br>
+The <var>generic_return_type</var> type shall be a suitably large unsigned integer type capable of
+representing the computed result.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.13 Single-bit Check paragraph 2:
+</p>
+
+<blockquote class="std">
+<p>
+The <code>stdc_has_single_bit</code> functions return <code>true</code> if and only if there is a single 1 bit in value.<br>
+The type-generic function <code>stdc_has_single_bit</code> returns the previously described result for a given
+input value provided that the type of the <var>generic_value_type</var> argument is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches a standard or extended integer type</del>.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.14 Bit Width paragraph 3:
+</p>
+
+<blockquote class="std">
+<p>
+The <code>stdc_bit_width</code> functions return 0 if value is 0.  Otherwise, they return <code>1 + &#8970;log<sub>2</sub> (value)&#8971;</code>.<br>
+The type-generic function <code>stdc_bit_width</code> returns the previously described result for a given input
+value provided that the type of the <var>generic_value_type</var> argument is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches a standard or extended integer type</del>.<br>
+The <var>generic_return_type</var> type shall be a suitably large unsigned integer type capable of
+representing the computed result.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.15 Bit Floor paragraph 3:
+</p>
+
+<blockquote class="std">
+<p>
+The <code>stdc_bit_floor</code> functions return 0 if value is 0.  Otherwise, they return the largest integral
+power of 2 that is not greater than value.<br>
+The type-generic function <code>stdc_bit_floor</code> returns the previously described result for a given input
+value the <var>generic_value_type</var> is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches a standard or extended integer type</del>.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.16 Bit Ceiling paragraph 3:
+</p>
+
+<blockquote class="std">
+<p>
+The <code>stdc_bit_ceil</code> functions return the smallest integral power of 2 that is not less than value or
+0 if such a value is not representable in the return type.<br>
+The type-generic function <code>stdc_bit_ceil</code> returns the previously described result for a given input
+value provided that the type of the <var>generic_value_type</var> argument is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches a standard or extended integer type</del>.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.17 Rotate Left paragraph 5:
+</p>
+
+<blockquote class="std">
+<p>
+The type-generic function <code>stdc_rotate_left</code> returns the above described result for a given input
+value provided that the type of the <var>generic_value_type</var> argument is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches any standard or extended integer
+type</del>.<br>
+The count argument to the type-generic function <code>stdc_rotate_left</code> shall be a value of signed or
+unsigned integer type, or <code>char</code>.
+</p>
+</blockquote>
+
+<p>
+Modify 7.18.18 Rotate Right paragraph 5:
+</p>
+
+<blockquote class="std">
+<p>
+The type-generic function <code>stdc_rotate_right</code> returns the above described result for a given input
+value provided that the type of the <var>generic_value_type</var> argument is:<br>
+&mdash; a standard unsigned integer type;<br>
+&mdash; an extended unsigned integer type; or,<br>
+&mdash; a bit-precise unsigned integer type<del> whose width matches any standard or extended integer
+type</del>.<br>
+The count argument to the type-generic function <code>stdc_rotate_right</code> shall be a value of signed or
+unsigned integer type, or <code>char</code>.
+</p>
+</blockquote>
+
+<h2><a name="Acknowledgments">Acknowledgments</a></h2>
+
+<p>
+Many thanks to Joseph S. Myers, Martin Uecker and Aaron Ballman.
+</p>
+
+</body>
