@@ -101,7 +101,7 @@ some cases it is just a matter of zero-extending the value into
 the largest standard or extended integer type, in other cases one
 needs to query the width of the bit-precise integer type (can be done
 using <code>_Generic</code> or e.g. using <code>stdc_count_ones</code>
-on <code>(unsigned long long) ~(typeof (<var>value</var>))0</code>
+on <code>(unsigned long long) ~(typeof (<var>value</var>))0</code>)
 and combine that with the result of the type-generic macro on
 a larger standard or extended integer type.  Or, if it is twice the
 size of the largest standard or extended integer type, it can be often
@@ -109,11 +109,11 @@ implemented using the type-generic macro on both the low and high
 halves of the value cast to the largest standard or extended integer type.
 
 If an implementation already supports much larger values of
-<code>BITINT_MAXWIDTH</code>, then it already significant effort has
+<code>BITINT_MAXWIDTH</code>, then significant effort has already
 been spent to implement arithmetics, cast from/to floating point types
 (including decimal floating point) and implementing extra type-generic
 intrinsics for the <code>stdbit.h</code> type-generic macros is just
-very small fraction of the overall engineering effort to implement
+a very small fraction of the overall engineering effort to implement
 bit-precise integer types.
 </p>
 
