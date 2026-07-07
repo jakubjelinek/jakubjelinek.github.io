@@ -1,0 +1,578 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN"
+   "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=US-ASCII">
+<style type="text/css">
+
+body { color: #000000; background-color: #FFFFFF; }
+del { text-decoration: line-through; color: #8B0040; }
+ins { text-decoration: underline; color: #005100; }
+
+p.example { margin-left: 2em; }
+pre.example { margin-left: 2em; }
+div.example { margin-left: 2em; }
+
+code.extract { background-color: #F5F6A2; }
+pre.extract { margin-left: 2em; background-color: #F5F6A2;
+  border: 1px solid #E1E28E; }
+
+p.function { }
+.attribute { margin-left: 2em; }
+.attribute dt { float: left; font-style: italic;
+  padding-right: 1ex; }
+.attribute dd { margin-left: 0em; }
+
+blockquote.std { color: #000000; background-color: #F1F1F1;
+  border: 1px solid #D1D1D1;
+  padding-left: 0.5em; padding-right: 0.5em; }
+blockquote.stddel { text-decoration: line-through;
+  color: #000000; background-color: #FFEBFF;
+  border: 1px solid #ECD7EC;
+  padding-left: 0.5empadding-right: 0.5em; ; }
+
+blockquote.stdins { text-decoration: underline;
+  color: #000000; background-color: #C8FFC8;
+  border: 1px solid #B3EBB3; padding: 0.5em; }
+
+table { border: 1px solid black; border-spacing: 0px;
+  margin-left: auto; margin-right: auto; }
+th { text-align: left; vertical-align: top;
+  padding-left: 0.8em; border: none; }
+td { text-align: left; vertical-align: top;
+  padding-left: 0.8em; border: none; }
+
+</style>
+<title>Arbitrary bit-precise varying argument access, stores and loads</title>
+</head>
+<body>
+
+<h1>Arbitrary bit-precise varying argument access, stores and loads</h1>
+
+<p>
+ISO/IEC JTC1/SC22/WG14 NXXXX 2026-07-07
+</p>
+
+<address>
+Jakub Jel&iacute;nek, jakub@redhat.com
+</address>
+
+<p>
+<a href="#Abstract">Abstract</a><br>
+<a href="#ChangeLog">ChangeLog</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#rev0">Revision 0</a><br>
+<a href="#Introduction">Introduction and Motivation</a><br>
+<a href="#Proposal">Proposal</a><br>
+<a href="#Variants">Possible variants</a><br>
+<a href="#Implementation">Implementation experience</a><br>
+<!-- &nbsp;&nbsp;&nbsp;&nbsp;<a href="#Issues">Issues</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<a href="#Approaches">Approaches</a><br>
+<a href="#Good">Good HTML</a><br> -->
+</p>
+
+<h2><a name="Abstract">Abstract</a></h2>
+
+<p>
+This proposal offers type-generic macros for varying bit-precise integer
+type argument access whose width is determined at runtime, storing their
+values as array of integers or storing bit-precise integer value computed
+from array of integers.
+</p>
+
+<h2><a name="ChangeLog">ChangeLog</a></h2>
+
+<h3><a name="rev0">Revision 0</a> 2026-07-07</h3>
+
+<p>
+&mdash; Initial release.
+</p>
+
+<h2><a name="Introduction">Introduction and Motivation</a></h2>
+
+<p>
+C23 introduced bit-precise integer types, however it lacks standard
+facilities for writing such values to output streams and reading such
+values from input streams.  The
+<a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2858.pdf">N2858</a>
+paper proposes reasonable extensions for <code>printf</code> and
+<code>scanf</code> family of functions to support those.  Users might also
+want to add similar support to their own libraries.  However there is an
+implementability problem, while there are just a few standard integer types
+and optionally a few extra extended integer types, there can be thousands
+or millions of distinct bit-precise integer types.
+</p>
+
+<p>In order to support following example</p>
+
+<pre class="example">
+<code>
+  _BitInt(856) x;
+  printf("%wb175u",
+         42636895407386080189113439121686496074204655714062974uwb);
+  scanf("%wb856d", &amp;x);
+</code>
+</pre>
+
+<p>
+the C library needs to use separate <code>va_arg</code> macro invocation
+for each supported width of bit-precise integer types in the
+<code>printf</code> case or store separately each supported width of
+bit-precise integer types through the pointer obtained through
+<code>va_arg</code> macro.  If an implementation supports the bare
+minimum of bit-precise integer types and <code>BITINT_MAXWIDTH</code>
+is very small, e.g. equal to <code>LLONG_WIDTH</code>, this can be
+easily implemented e.g. using</p>
+
+<pre class="example">
+<a name="minimal_impl"></a>
+<code>
+#include &lt;stdarg.h&gt;
+#include &lt;stddef.h&gt;
+#include &lt;limits.h&gt;
+
+void
+read_bitint_n(va_list *ap, size_t n, unsigned long *p, bool end, bool uns)
+{
+  unsigned long long r = 0;
+  if (uns)
+    switch (n)
+      {
+#define A(n) case n: r = va_arg(*ap, unsigned _BitInt(n)); break;
+#define B(n) A(n##0) A(n##1) A(n##2) A(n##3) A(n##4) \
+             A(n##5) A(n##6) A(n##7) A(n##8) A(n##9)
+        A(1) A(2) A(3) A(4) A(5) A(6) A(7) A(8) A(9)
+        B(1) B(2) B(3) B(4) B(5)
+        A(60) A(61) A(62) A(63) A(64)
+      }
+  else
+    switch (n)
+      {
+#undef A
+#define A(n) case n: r = va_arg(*ap, _BitInt(n)); break;
+        A(1) A(2) A(3) A(4) A(5) A(6) A(7) A(8) A(9)
+        B(1) B(2) B(3) B(4) B(5)
+        A(60) A(61) A(62) A(63) A(64)
+      }
+  r &lt;&lt;= (LLONG_WIDTH - n);
+  if (uns)
+    r &gt;&gt;= (LLONG_WIDTH - n);
+  else
+    r = ((long long) r) &gt;&gt; (LLONG_WIDTH - n);
+  size_t w = (n + LONG_WIDTH - 1) / LONG_WIDTH;
+  if (end)
+    for (size_t i = 0; i &lt; w; ++i)
+      p[w - 1 - i] = r &gt;&gt; (i * LONG_WIDTH);
+  else
+    for (size_t i = 0; i &lt; w; ++i)
+      p[i] = r &gt;&gt; (i * LONG_WIDTH);
+}
+</code>
+</pre>
+
+<p>
+If <code>BITINT_MAXWIDTH</code> is large (GCC currently uses value
+65535 for it on architectures which do support bit-precise integers,
+Clang on selected architectures uses 8388608), such an approach
+is not feasible, e.g. <a href="https://godbolt.org/z/es83o8rzb">
+Godbolt example</a> doesn't even compile in reasonable time, and
+even when commenting out 59000 of the 65535 cases it resulted in
+1.3MiB of code when compiled by GCC.  Furthermore, if the maximum
+bit-precise integer width is large, converting all bit-precise
+integer values to the largest one is inefficient, for the C library
+internals it is best to represent the arbitrary values as an array
+of limbs and either handle conversions from or to strings on it
+directly (for decimal I/O divide and modulo each limb by 10 e.g.
+using arithmetics on a type larger than the limb type), or use some
+Multiple Precision Arithmetics library under the hood.
+</p>
+
+<p>
+The ABI for bit-precise integer types, their size, alignment, how they
+are passed as function arguments and returned from functions differs
+between different architectures (if it is already defined at all).
+In most cases however if the bit-precise width is smaller than certain
+small constants, their size, alignment and argument passing follows
+passing of selected standard integer types which has width larger or
+equal to the width of the bit-precise integer, and for larger width
+they are handled as usually as a structure containing single member
+with type array of some integer type.  That integer type differs between
+different architectures, common width of the limb type are 64 bits,
+128 bits or 32 bits.  The knowledge of that is usually confined to
+compilers which support bit-precise integer types, the C library and
+especially user code doing similar format string handling as the C library
+ideally shouldn't hardcode such details and also details of the
+<code>va_list</code> type.  So, this paper proposes macros
+which can be used both for the C library implementation and in other
+user code as well.
+</p>
+
+<p>Hardcoding for the macros a particular user limb
+type (element of the array to be filled with bits of the read bit-precise
+integer value) is possible, but not very C library implementor or
+user-friendly.
+Mandating that the limb type matches the limb type in a particular
+bit-precise integer ABI would mean the library would need to implement
+the reading and writing of bit-precise integers several times, e.g. once
+for some 64-bit, once for some 32-bit and once for some 128-bit integer
+type if not more.  Hardcoding some arbitrarily chosen standard integer
+type, e.g. <code>unsigned long int</code>, is possible, but would require
+extra memory and time to recode it into the form the library needs.
+Always using a very small limb type, such as <code>unsigned char</code>
+would mean too many limbs, usually the library will want as large limb
+type as possible provided that it can perform efficiently all operations
+it needs, or when using an underlying Multiple Precision Arithmetic
+library determined by the requirements of that library.
+Another needed choice is the ordering of the limbs within the array
+of limbs, whether the least significant limb comes first (little-endian)
+or last (big-endian).  It is certainly possible to hardcode e.g.
+little-endian ordering of the limbs, however if an underlying library is
+involved and needs a different ordering the C library or user code
+would need to swap the limbs in a loop.
+</p>
+
+<p>
+Yet another concern is when trying to build a C library which is supposed
+to support bit-precise integer I/O with a compiler which doesn't support
+them or doesn't support this proposal.  One possibility is to pre-compile
+a simple function using these macros, for the <code>va_arg_bitint</code>
+case taking <code>va_list *</code> argument using a compiler which supports
+these into assembly and use that as fallback when compiler which builds the
+C library doesn't support it.  In such a case, it is certainly useful when
+the library can choose any limb type it wants instead of requiring to
+match a particular ABI limb type.
+</p>
+
+<h2><a name="Proposal">Proposal</a></h2>
+
+<p>
+Introduce 3 new type-generic macros,
+</p>
+
+<pre class="example">
+<code>
+#include &lt;stdarg.h&gt;
+void va_arg_bitint(va_list <var>ap</var>, size_t <var>n</var>, <var>type</var> *<var>limbptr</var>, bool <var>big_endian</var>, bool <var>uns</var>);
+</code>
+</pre>
+
+<p>
+and
+</p>
+
+<pre class="example">
+<code>
+#include &lt;stdbit.h&gt;
+void stdc_load_bitint(void *<var>bitintptr</var>, size_t <var>n</var>, const <var>type</var> *<var>limbptr</var>, bool <var>big_endian</var>, bool <var>uns</var>);
+void stdc_store_bitint(const void *<var>bitintptr</var>, size_t <var>n</var>, <var>type</var> *<var>limbptr</var>, bool <var>big_endian</var>, bool <var>uns</var>);
+</code>
+</pre>
+
+<p>
+The <code>va_arg_bitint</code> macro executes
+</p>
+
+<pre class="example">
+<code>
+if (uns)
+  stdc_store_bitint(&amp;(unsigned _BitInt(<var>n</var>)){va_arg(<var>ap</var>, unsigned _BitInt(<var>n</var>))}, <var>n</var>, <var>limbptr</var>, <var>big_endian</var>, <var>uns</var>);
+else
+  stdc_store_bitint(&amp;(_BitInt(<var>n</var>)){va_arg(<var>ap</var>, _BitInt(<var>n</var>))}, <var>n</var>, <var>limbptr</var>, <var>big_endian</var>, <var>uns</var>);
+</code>
+</pre>
+
+<p>
+except that <var>n</var> (nor the other macro arguments) is not required to
+be a constant expression, while <code>_BitInt(<var>N</var>)</code> keyword requires
+a constant expression <var>N</var>, so it actually works as if a large
+<code>switch</code> based on <var>n</var> handling all supported width of
+bit-precise integers.
+</p>
+
+<p>
+<var>type</var> can be any standard integer type or extended integer type,
+except <code>bool</code>.  Bit-precise integer types are intentionally
+excluded from this set, supporting splitting of bit-precise integers
+into array of <code>_BitInt(17)</code> or array of <code>_BitInt(921)</code>
+wouldn't be very useful and would significantly complicate the implementation
+of the macros.
+</p>
+
+<p>
+If <var>type</var> type has width <var>W</var>, then the
+<code>stdc_load_bitint</code> and <code>stdc_store_bitint</code> macros
+assume <var>limbptr</var> points to an array of
+<code>(<var>n</var> + <var>W</var> - 1) / <var>W</var></code> elements and
+<var>bitintptr</var> points to an object of type
+<code>_BitInt(<var>N</var>)</code> if <code>!uns</code> or
+<code>unsigned _BitInt(<var>N</var>)</code> otherwise where <var>N</var> is
+equal to <var>n</var>.
+</p>
+
+<p>
+<code>stdc_store_bitint</code> stores, if <var>n</var> is greater or equal
+than <var>W</var>, the least significant <var>W</var> bits of
+the bit-precise integer value into
+<code><var>limbptr</var>[<var>big_endian</var> ? <var>n</var> + <var>W</var> - 1) / <var>W</var> - 1 : 0]</code>,
+if <var>n</var> is greater or equal than <code>2 * <var>W</var></code>,
+the second least significant <var>W</var> bits of the bit-precise
+integer value into
+<code><var>limbptr</var>[<var>big_endian</var> ? <var>n</var> + <var>W</var> - 1) / <var>W</var> - 2 : 1]</code>,
+etc., up to the most significant <code>((<var>n</var> - 1) % <var>W</var>) + 1</code>
+bits of the bit-precise integer value, which is stored into least
+significant bits of
+<code><var>limbptr</var>[<var>big_endian</var> ? 0 : <var>n</var> + <var>W</var> - 1) / <var>W</var> - 1]</code>.
+If <code><var>n</var> % <var>W</var> != 0</code> the remaining bits are
+cleared if <var>uns</var> or sign-extended otherwise.
+</p>
+
+<p>
+<code>stdc_load_bitint</code> conversely sets the least significant
+<var>W</var> bits of the bit-precise integer object to
+<code><var>limbptr</var>[<var>big_endian</var> ? <var>n</var> + <var>W</var> - 1) / <var>W</var> - 1 : 0]</code>,
+the second last significant <var>W</var> bits of the bit-precise integer object to
+<code><var>limbptr</var>[<var>big_endian</var> ? <var>n</var> + <var>W</var> - 1) / <var>W</var> - 2 : 1]</code>,
+etc. and finally the most significant <code>((<var>n</var> - 1) % <var>W</var>) + 1</code>
+bits to
+<code><var>limbptr</var>[<var>big_endian</var> ? 0 : <var>n</var> + <var>W</var> - 1) / <var>W</var> - 1]</code>.
+</p>
+
+<p>
+It is not necessary to expose the <code>size_t</code> type name or the
+<code>stdc_store_bitint</code> macro when including just the
+&lt;stdarg.h&gt; header, the intent of the wording is that it acts as if
+the macro is invoked and for promotion of the <code>va_arg_bitint</code>
+argument to <code>size_t</code> it can use some internal type name instead.
+</p>
+
+<h2><a name="Variants">Possible variants</a></h2>
+
+<p>
+The above macros have both endianity (<var>big_endian</var>) and signedness
+(<var>uns</var>) as <code>bool</code> macro arguments and allow both of them
+to be constant or non-constant.  At least the endianity but the signedness
+as well could be if the committee prefers it required to be a constant
+expression, or remove the argument or arguments and move the endianity
+and/or the signedness into the name of the macro, similar how e.g.
+<code>stdc_load8_leu<var>N</var></code> functions have those in the
+function name and not as arguments.  That said, signedness in the actual
+implementation requires just one simple conditional (whether to zero-extend
+or sign-extend the bits on <code>stdc_store_bitint</code> when storing the
+most significant limb, or for <code>stdc_load_bitint</code> also to guard
+just a few instructions, and endianity also can guard just a small amount of
+code.
+</p>
+
+<h2><a name="Implementation">Implementation experience</a></h2>
+
+<p>
+The author implemented built-in functions which can be used for these macros
+in <a href="https://gcc.gnu.org/pipermail/gcc-patches/2026-July/722870.html">GCC</a>,
+so far only on x86-64 and i686 architectures and with the built-in function
+for <code>stdc_load_bitint</code> unfinished yet, but the design is flexible
+enough that other architectures can be added easily and the unfinished
+built-in function can be completed.
+</p>
+
+<p>
+Implementations which support large <code>BITINT_MAXWIDTH</code> need to
+support these likely as compiler intrinsics, implementations which only
+support the bare minimum set of bit-precise integer types could use e.g. for
+<code>va_arg_bitint</code> something similar to the above
+<a href="#minimal_impl">code</a>.
+</p>
+
+<h2><a name="Wording">Wording</a></h2>
+
+<p>
+The wording is relative to the latest Working Draft at time of publication,
+<a href="https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3886.pdf">N3886</a>.
+</p>
+
+<p>
+Modify 7.16.1 General paragraph 4:
+</p>
+
+<blockquote class="std">
+<p>
+The type declared is
+</p>
+<pre>
+va_list
+</pre>
+<p>
+which is a complete object type suitable for holding information needed by the macros
+<code>va_start</code>, <code>va_arg</code>, <ins><code>va_arg_bitint</code>,
+</ins><code>va_end</code>, and <code>va_copy</code> to access the varying arguments.
+Objects of type <code>va_list</code> are generally referred to as <var>ap</var> in this
+subclause.  If an <var>ap</var> object is passed as an argument to another
+function and that function invokes the
+<code>va_arg</code><ins> or <code>va_arg_bitint</code></ins> macro<ins>s</ins> on
+<var>ap</var>, the representation of <var>ap</var> in the calling function is indeterminate
+and <var>ap</var> shall be passed to the <code>va_end</code> macro before being passed to any
+other <code>va_...</code> macros.<sup>263)</sup> Whether a byte copy of
+<code>va_list</code> can be used in place of the original is implementation-defined.
+</p>
+</blockquote>
+
+<p>
+Modify 7.16.2.1 General paragraph 1:
+</p>
+
+<blockquote class="std">
+<p>
+The <code>va_start</code><del> and</del><ins>,</ins> <code>va_arg</code><ins> and
+<code>va_arg_bitint</code></ins> macros described in this subclause shall be implemented as
+macros, not functions.  It is unspecified whether <code>va_copy</code> and <code>va_end</code>
+are macros or identifiers declared with external linkage.  If a macro definition is suppressed
+to access an actual function, or a program defines an external identifier with the same name,
+the behavior is undefined.  Each invocation of the <code>va_start</code> and
+<code>va_copy</code> macros shall be matched by a corresponding invocation of the
+<code>va_end</code> macro in the same function.
+</p>
+</blockquote>
+
+<p>
+Add a new subclause after 7.16.2.2 The <code>va_arg</code> macro:
+</p>
+
+<blockquote class="stdins">
+<h3>7.16.2.3 The <code>va_arg_bitint</code> macro</h3>
+
+<p>
+<strong>Synopsis</strong>
+</p>
+
+<pre class="example">
+<code>
+#include &lt;stdarg.h&gt;
+void va_arg_bitint(va_list <var>ap</var>, size_t <var>n</var>, const <var>generic_limb_type</var> *<var>limbptr</var>, bool <var>big_endian</var>, bool <var>uns</var>);
+</code>
+</pre>
+
+<p>
+<strong>Description</strong>
+</p>
+
+<p>
+The type-generic macro <code>va_arg_bitint</code> reads a value of the next
+argument in the call as if <code>va_arg(<var>ap</var>, _BitInt(<var>N</var>)</code>
+is invoked if <var>uns</var> argument is <code>false</code> or as if
+<code>va_arg(<var>ap</var>, unsigned _BitInt(<var>N</var>)</code> otherwise
+where <var>N</var> is constant equal to <var>n</var>, stores that value into
+a compound literal of the same type and then writes that value into an array
+pointed by <var>limbptr</var> as if the type-generic macro
+<code>stdc_store_bitint</code> has been invoked with the address of the
+compound literal as first argument and the <var>n</var>, <var>limbptr</var>,
+<var>big_endian</var> and <var>uns</var> arguments passed as remaining
+arguments to <code>stdc_store_bitint</code>.
+</p>
+</blockquote>
+
+<p>
+Add two new subclauses after 7.18.22 Endian-Aware 8-Bit Store:
+</p>
+
+<blockquote class="stdins">
+<h3>7.18.23 Bit-Precise Integer Load</h3>
+
+<p>
+<strong>Synopsis</strong>
+</p>
+
+<pre class="example">
+<code>
+#include &lt;stdbit.h&gt;
+void stdc_load_bitint(void *<var>bitintptr</var>, size_t <var>n</var>, const <var>generic_limb_type</var> *<var>limbptr</var>, bool <var>big_endian</var>, bool <var>uns</var>);
+</code>
+</pre>
+
+<p>
+<strong>Description</strong>
+</p>
+
+<p>
+The type-generic function <code>stdc_load_bitint</code> reads a value from
+array pointed by <var>limbptr</var> and writes it into an object with
+bit-precise signed integer type with width equal to <var>n</var> pointed
+to by <var>bitintptr</var> when <var>uns</var> is <code>false</code> or into an object
+with bit-precise unsigned integer type with width equal to <var>n</var>
+pointed to by <var>bitintptr</var> otherwise, provided that the
+<var>generic_limb_type</var> type is a standard integer type or extended integer type,
+other than <code>bool</code>.  If <var>n</var> is smaller than 1 or larger than
+<var>BITINT_MAXWIDTH</var>, the behavior is undefined.
+</p>
+
+<p>
+Let <var>W</var> be the width of the <var>generic_limb_type</var> type.<br>
+Let <var>E</var> be <code>(<var>n</var> + <var>W</var> - 1) / <var>W</var></code>.
+Let the computed value <var>avalue</var> be:<br>
+&sum;<sub><var>index</var>=0</sub><sup><var>E</var> - 1</sup> <var>b</var><sub><var>index</var></sub> &times; 2<sup><var>W</var>&times;<var>index</var></sup><br>
+
+where <var>b</var><sub><var>index</var></sub> is:<br>
+&mdash; <var>limbptr</var>[<var>index</var>], if <var>big_endian</var> argument is <code>false</code>;<br>
+&mdash; otherwise, <var>limbptr</var>[<var>E</var> - <var>index</var> - 1], if <var>big_endian</var> argument is <code>true</code>.
+</p>
+
+<p>
+Let <var>value</var> be <var>avalue</var> modulo 2<sup><var>n</var></sup>.<br>
+If <var>uns</var> argument is <code>true</code>, then <var>value</var>
+is stored into the object pointed by <var>bitintptr</var>;<br>
+otherwise, if <var>value</var> is smaller than 2<sup><var>n</var>-1</sup>,
+then <var>value</var> is stored into the object pointed by <var>bitintptr</var>;<br>
+otherwise, <var>value</var> &ndash; 2<sup><var>n</var></sup> is stored
+into the object pointed by <var>bitintptr</var>.
+</p>
+
+<h3>7.18.24 Bit-Precise Integer Store</h3>
+
+<p>
+<strong>Synopsis</strong>
+</p>
+
+<pre class="example">
+<code>
+#include &lt;stdbit.h&gt;
+void stdc_store_bitint(const void *<var>bitintptr</var>, size_t <var>n</var>, <var>generic_limb_type</var> *<var>limbptr</var>, bool <var>big_endian</var>, bool <var>uns</var>);
+</code>
+</pre>
+
+<p>
+<strong>Description</strong>
+</p>
+
+<p>
+The type-generic function <code>stdc_store_bitint</code> reads a value from
+object with bit-precise signed integer type with width equal to <var>n</var>
+pointed to by <var>bitintptr</var> when <var>uns</var> is <code>false</code> or a value from
+object with bit-precise unsigned integer type with width equal to <var>n</var>
+pointed to by <var>bitintptr</var> otherwise and writes it into array pointed by
+<var>limbptr</var>, provided that the <var>generic_limb_type</var> type is
+a standard integer type or extended integer type, other than
+<code>bool</code>.  If <var>n</var> is smaller than 1 or larger than
+<var>BITINT_MAXWIDTH</var>, the behavior is undefined.
+</p>
+
+<p>
+Let <var>W</var> be the width of the <var>generic_limb_type</var> type.
+Let <var>value</var> be the loaded bit-precise integer type value, if
+<var>uns</var> is <code>true</code> with bit-precise unsigned integer type with width equal
+to <var>n</var>, otherwise with bit-precise signed integer type with width
+equal to <var>n</var>.<br>
+Let <var>index</var> be an integer in a sequence that<br>
+&mdash; starts from 0 and increments by <var>W</var> in the range
+[0, <var>n</var>), if the <var>big_endian</var> argument is <code>false</code>;<br>
+&mdash; starts from <code>(<var>n</var> - 1) / <var>W</var> * <var>W</var></code>
+and decrements by <var>W</var> in the range [0, <var>n</var>), if the
+<var>big_endian</var> argument is <code>true</code>.
+</p>
+
+<p>
+Let <var>ptr_index</var> be an integer that starts from 0.  For each index
+in the order of the above-specified sequence:<br>
+&mdash; Sets the <var>W</var> bits in <var>limbptr</var>[<var>ptr_index</var>] to
+(<var>generic_limb_type</var>) (<var>value</var> >> <var>index</var>).<br>
+&mdash; Increments <var>ptr_index</var> by 1.
+</p>
+</blockquote>
+
+</body>
