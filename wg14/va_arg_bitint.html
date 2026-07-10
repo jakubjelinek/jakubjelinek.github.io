@@ -243,7 +243,7 @@ match a particular ABI limb type.
 
 <p>
 For <code>scanf</code> there is another problem.  It is undefined behavior
-to use <code>va_arg (<var>ap</var>, _BitInt(64) *)<code> when the next
+to use <code>va_arg (<var>ap</var>, _BitInt(64) *)</code> when the next
 argument has <code>_BitInt(65) *</code> or <code>_BitInt(927) *</code>
 type.  So, in order to implement bit-precise integer <code>scanf</code>
 support, one still needs pedantically a large <code>switch</code> with
@@ -373,7 +373,7 @@ and/or the signedness into the name of the macro, similar how e.g.
 function name and not as arguments.  That said, signedness in the actual
 implementation requires just one simple conditional (whether to zero-extend
 or sign-extend the bits on <code>stdc_store_bitint</code> when storing the
-most significant limb, or for <code>stdc_load_bitint</code> also to guard
+most significant limb), or for <code>stdc_load_bitint</code> also to guard
 just a few instructions, and endianity also can guard just a small amount of
 code.
 </p>
@@ -499,9 +499,9 @@ void va_arg_bitint(va_list <var>ap</var>, size_t <var>n</var>, <var>generic_limb
 
 <p>
 The type-generic macro <code>va_arg_bitint</code> reads a value of the next
-argument in the call as if <code>va_arg(<var>ap</var>, _BitInt(<var>N</var>)</code>
+argument in the call as if <code>va_arg(<var>ap</var>, _BitInt(<var>N</var>))</code>
 is invoked if <var>uns</var> argument is <code>false</code> or as if
-<code>va_arg(<var>ap</var>, unsigned _BitInt(<var>N</var>)</code> otherwise
+<code>va_arg(<var>ap</var>, unsigned _BitInt(<var>N</var>))</code> otherwise
 where <var>N</var> is constant equal to <var>n</var>, stores that value into
 a compound literal of the same type and then writes that value into an array
 pointed to by <var>limbptr</var> as if the type-generic macro
